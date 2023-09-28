@@ -90,9 +90,10 @@ POSITION_CONTROL_MODE       = 3                 # Value for Position control mod
 EXT_POSITION_CONTROL_MODE   = 4                 # The value of Extended Position Control Mode that can be set through the Operating Mode (11)
 TORQUE_ENABLE               = 1                 # Value for enabling the torque
 TORQUE_DISABLE              = 0                 # Value for disabling the torque
-MAX_POSITION_VALUE          = 8100        # Of MX with firmware 2.0 and X-Series the revolution on Extended Position Control Mode is 256 rev
+MAX_POSITION_VALUE          = 8190              # Of MX with firmware 2.0 and X-Series the revolution on Extended Position Control Mode is 256 rev
+CALIBRATION_POSITION        = 8160
 DXL_MOVING_STATUS_THRESHOLD = 20                # Dynamixel will rotate between this value
-CALIBRATION_THRESHOLD       = 300
+calibration_threshold       = MAX_POSITION_VALUE - CALIBRATION_POSITION
 
 ESC_ASCII_VALUE             = 0x1b
 SPACE_ASCII_VALUE           = 0x20
@@ -107,8 +108,9 @@ Q_ASCII_VALUE               = 0x71
 X_ASCII_VALUE               = 0x78
 R_ASCII_VALUE               = 0x72
 P_ASCII_VALUE               = 0x70
+M_ASCII_VALUE               = 0x6d
 
-Velocity_Value              = 200
+Yaw_Velocity_Value              = 20
 
 # Initialize PortHandler instance
 # Set the port path
@@ -177,7 +179,7 @@ else:
 ########################################################################################
 # default Velocity profile
 # Yaw motor
-dxl_comm_result, dxl_error = packetHandler.write4ByteTxRx(portHandler, YAW_ID, ADDR_VELOCITY_PROFILE, Velocity_Value)
+dxl_comm_result, dxl_error = packetHandler.write4ByteTxRx(portHandler, YAW_ID, ADDR_VELOCITY_PROFILE, Yaw_Velocity_Value)
 if dxl_comm_result != COMM_SUCCESS:
     print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
 elif dxl_error != 0:
@@ -185,7 +187,7 @@ elif dxl_error != 0:
 else:
     print("XL330 has been successfully connected")
 # Pitch motor
-dxl_comm_result, dxl_error = packetHandler.write4ByteTxRx(portHandler, PITCH_ID, ADDR_VELOCITY_PROFILE, Velocity_Value)
+dxl_comm_result, dxl_error = packetHandler.write4ByteTxRx(portHandler, PITCH_ID, ADDR_VELOCITY_PROFILE, Yaw_Velocity_Value)
 if dxl_comm_result != COMM_SUCCESS:
     print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
 elif dxl_error != 0:
@@ -226,6 +228,21 @@ def Clear(motor_id):
     elif dxl_error != 0:
         print("%s" % packetHandler.getRxPacketError(dxl_error))
         
+########################################################################################
+def SaveGoalPos(dxl_ID, data):
+    Goal = M_Read(dxl_ID ,ADDR_GOAL_POSITION)
+    data[dxl_ID-1] = Goal
+    SaveData(data)
+    print("\n")
+########################################################################################
+def PitchSpeedSpanning(Ystartpoint, Yendpoint, Pstartpoint, Pendpoint):
+    if Ystartpoint - Yendpoint != 0:
+        Pitch_Velocity_Value = Yaw_Velocity_Value * abs(Pstartpoint - Pendpoint) / abs(Ystartpoint - Yendpoint)
+        M_Control(PITCH_ID, ADDR_VELOCITY_PROFILE, int(Pitch_Velocity_Value))
+        sleepTime = abs(Pstartpoint - Pendpoint) / Yaw_Velocity_Value / 15.7
+    else:
+        sleepTime = 3
+    return sleepTime
 ######################################################################################## 
 # Main Fluke loop
 packetHandler.clearMultiTurn(portHandler,YAW_ID)
@@ -239,6 +256,7 @@ dxl_ID = 1
 data = []
 
 data = ReadData("Saturation.txt")
+# print(data)
 if len(data) < 10:
     data = [M_Read(YAW_ID,ADDR_PRESENT_POSITION), M_Read(PITCH_ID,ADDR_PRESENT_POSITION), 8100, -8100, 8100, 0, 8100, -8100, 8100,0]
 # <Command Data Order>
@@ -264,25 +282,25 @@ Rotation = 4095
 #####Yaw Calibration####
 Yaw_difference = data[0] - M_Read(YAW_ID,ADDR_PRESENT_POSITION)
 
-if Yaw_difference - Rotation < CALIBRATION_THRESHOLD and Yaw_difference - Rotation > -CALIBRATION_THRESHOLD:
+if Yaw_difference - Rotation < calibration_threshold and Yaw_difference - Rotation > -calibration_threshold:
     # 360~720 range
     Yaw_Cal_var = -Rotation
-elif Yaw_difference - 2*Rotation < CALIBRATION_THRESHOLD and Yaw_difference - 2*Rotation > -CALIBRATION_THRESHOLD:
+elif Yaw_difference - 2*Rotation < calibration_threshold and Yaw_difference - 2*Rotation > -calibration_threshold:
     # 720~1080 range
     Yaw_Cal_var = -2*Rotation
-elif Yaw_difference - 3*Rotation < CALIBRATION_THRESHOLD and Yaw_difference - 3*Rotation > -CALIBRATION_THRESHOLD:
+elif Yaw_difference - 3*Rotation < calibration_threshold and Yaw_difference - 3*Rotation > -calibration_threshold:
     # 1080~1440 range
     Yaw_Cal_var = -3*Rotation
-elif Yaw_difference + Rotation < CALIBRATION_THRESHOLD and Yaw_difference + Rotation > -CALIBRATION_THRESHOLD:
+elif Yaw_difference + Rotation < calibration_threshold and Yaw_difference + Rotation > -calibration_threshold:
     # -0~-360 range
     Yaw_Cal_var = Rotation
-elif Yaw_difference + 2*Rotation < CALIBRATION_THRESHOLD and Yaw_difference + 2*Rotation > -CALIBRATION_THRESHOLD:
+elif Yaw_difference + 2*Rotation < calibration_threshold and Yaw_difference + 2*Rotation > -calibration_threshold:
     # -360~-720 range
     Yaw_Cal_var = 2*Rotation
-elif Yaw_difference + 3*Rotation < CALIBRATION_THRESHOLD and Yaw_difference + 3*Rotation > -CALIBRATION_THRESHOLD:
+elif Yaw_difference + 3*Rotation < calibration_threshold and Yaw_difference + 3*Rotation > -calibration_threshold:
     # -720~-1080 range
     Yaw_Cal_var = 3*Rotation
-elif Yaw_difference < CALIBRATION_THRESHOLD and Yaw_difference > -CALIBRATION_THRESHOLD:
+elif Yaw_difference < calibration_threshold and Yaw_difference > -calibration_threshold:
     # 0~360 range
     Yaw_Cal_var = 0
 else :
@@ -311,8 +329,6 @@ data[7] = data[7] + Yaw_Cal_var
 # data[9] = data[9] + Pitch_Cal_var
 
 ########################################################################################
-
-
 
 yaw_Sat = data[6:8]
 pitch_Sat = data[8:]
@@ -351,42 +367,56 @@ while 1:
         # M_Control(PITCH_ID, ADDR_GOAL_POSITION, pitch_Sat[1])
         Clear(YAW_ID)
         Clear(PITCH_ID)
+        SaveData(data)
         break
     
     elif c == chr(W_ASCII_VALUE):
         # print("W key detected")
+        M_Control(PITCH_ID, ADDR_VELOCITY_PROFILE, Yaw_Velocity_Value)
         M_Control(PITCH_ID, ADDR_GOAL_POSITION, pitch_Sat[0])
+        SaveGoalPos(PITCH_ID, data)
         dxl_ID = 2      # pitch id
         
     elif c == chr(A_ASCII_VALUE):
         # print("A key detected")
         M_Control(YAW_ID, ADDR_GOAL_POSITION, yaw_Sat[1])
+        SaveGoalPos(YAW_ID, data)
         dxl_ID = 1      # yaw id
         
     elif c == chr(S_ASCII_VALUE):
         # print("S key detected")
+        M_Control(PITCH_ID, ADDR_VELOCITY_PROFILE, Yaw_Velocity_Value)
         M_Control(PITCH_ID, ADDR_GOAL_POSITION, pitch_Sat[1])
+        SaveGoalPos(PITCH_ID, data)
         dxl_ID = 2      # pitch id
             
     elif c == chr(D_ASCII_VALUE):
         # print("D key detected")
         M_Control(YAW_ID, ADDR_GOAL_POSITION, yaw_Sat[0])
+        SaveGoalPos(YAW_ID, data)
         dxl_ID = 1      # yaw id
         
     elif c == chr(H_ASCII_VALUE):
         # print("H key detected")
-        Velocity_Value += 20
-        print("speed up -> %d" % Velocity_Value)
+        if Yaw_Velocity_Value < 30:
+            Yaw_Velocity_Value += 10
+        else:
+            print("Already Maximum Velocity value")
+        print("speed up -> %d" % Yaw_Velocity_Value)
         
-        M_Control(YAW_ID, ADDR_VELOCITY_PROFILE, Velocity_Value)        # Yaw motor
-        M_Control(PITCH_ID, ADDR_VELOCITY_PROFILE, Velocity_Value)         # Pitch motor
+        M_Control(YAW_ID, ADDR_VELOCITY_PROFILE, Yaw_Velocity_Value)        # Yaw motor
+        M_Control(PITCH_ID, ADDR_VELOCITY_PROFILE, Yaw_Velocity_Value)         # Pitch motor
         
     elif c == chr(L_ASCII_VALUE):
         # print("L key detected")
-        Velocity_Value -= 20
-        print("speed down -> %d" % Velocity_Value)
-        M_Control(YAW_ID, ADDR_VELOCITY_PROFILE, Velocity_Value)        # Yaw motor
-        M_Control(PITCH_ID, ADDR_VELOCITY_PROFILE, Velocity_Value)         # Pitch motor
+        if Yaw_Velocity_Value > 10:
+            Yaw_Velocity_Value -= 10
+        else:
+            print("Already Minimum Velocity value")
+        
+        print("speed down -> %d" % Yaw_Velocity_Value)
+        M_Control(YAW_ID, ADDR_VELOCITY_PROFILE, Yaw_Velocity_Value)        # Yaw motor
+        M_Control(PITCH_ID, ADDR_VELOCITY_PROFILE, Yaw_Velocity_Value)         # Pitch motor
         
     elif c == chr(X_ASCII_VALUE):
         key = input("Delete way point : ")
@@ -414,10 +444,9 @@ while 1:
         Pitch_wp_val = M_Read(PITCH_ID, ADDR_PRESENT_POSITION)
         # pitch waypoint
         
-        
-        if Yaw_wp_val[0] > 90:
-            Yaw_wp_val.insert(0, Yaw_wp_val[0] - 2*Rotation) 
-        elif Yaw_wp_val[0] < -90:
+        if Yaw_wp_val[0] > calibration_threshold:
+            Yaw_wp_val.insert(0, Yaw_wp_val[0] - 2*Rotation)
+        elif Yaw_wp_val[0] < -calibration_threshold:
             Yaw_wp_val.append(Yaw_wp_val[0] + 2*Rotation) 
         else:
             raise Exception("way point error")
@@ -478,9 +507,16 @@ while 1:
         # print(direction_list)
         Yaw_waypoint_list = []
         Pitch_waypoint_list = []
+        dxl_present_pos = M_Read(YAW_ID, ADDR_PRESENT_POSITION)
+        ################################################################################
+        if abs(input_list[0][1] + Yaw_Origin - dxl_present_pos) < abs(input_list[0][2] + Yaw_Origin  - dxl_present_pos):
+            chosenNum = 1
+        else:
+            chosenNum = 2
+        ################################################################################
         for i in input_direction:
-            Yaw_waypoint_list.append(input_list[i][1])
-            Pitch_waypoint_list.append(input_list[i][2])
+            Yaw_waypoint_list.append(input_list[i][chosenNum])
+            Pitch_waypoint_list.append(input_list[i][3])
                     
         print(Yaw_waypoint_list)
         print(Pitch_waypoint_list)
@@ -492,47 +528,60 @@ while 1:
                         
                         M_Control(dxl_ID, ADDR_GOAL_POSITION, dxl_present_position)      
                         break
+        LoopStart = 1
         while 1 :
-           
-            for i in range(len(input_direction)):
-                M_Control(YAW_ID, ADDR_GOAL_POSITION, Yaw_waypoint_list[i])
-                M_Control(PITCH_ID, ADDR_GOAL_POSITION, Pitch_waypoint_list[i])
-                dxl_present_position = Yaw_waypoint_list[i]
-                time.sleep(3)
+            for i in range(1, len(input_direction)):
+                print(i)
+                if LoopStart != 1 :
+                    sleepTime = PitchSpeedSpanning(Yaw_waypoint_list[i], Yaw_waypoint_list[i-1], Pitch_waypoint_list[i], Pitch_waypoint_list[i-1])
+                    M_Control(YAW_ID, ADDR_GOAL_POSITION, Yaw_waypoint_list[i]+ Yaw_Origin)
+                    M_Control(PITCH_ID, ADDR_GOAL_POSITION, Pitch_waypoint_list[i])
+                    dxl_present_position = Yaw_waypoint_list[i]
+                    print("Yaw " + str(Yaw_waypoint_list[i]) + "\n")
+                    print("Pitch" + str(Pitch_waypoint_list[i]) + "\n")
+                    time.sleep(sleepTime)
+                else:
+                    LoopStart = 0
+                    sleepTime = PitchSpeedSpanning(Yaw_waypoint_list[i] + Yaw_Origin, M_Read(YAW_ID,ADDR_PRESENT_POSITION), Pitch_waypoint_list[i], M_Read(PITCH_ID, ADDR_PRESENT_POSITION))
+                    M_Control(YAW_ID, ADDR_GOAL_POSITION, Yaw_waypoint_list[i]+ Yaw_Origin)
+                    M_Control(PITCH_ID, ADDR_GOAL_POSITION, Pitch_waypoint_list[i])
+                    dxl_present_position = Yaw_waypoint_list[i]
+                    print("Yaw " + str(Yaw_waypoint_list[i]) + "\n")
+                    print("Pitch" + str(Pitch_waypoint_list[i]) + "\n")
+                    time.sleep(sleepTime)
                 if kbhit():
                     c = getch()
                     if c == chr(P_ASCII_VALUE):
+                        SaveGoalPos(PITCH_ID, data)
+                        SaveGoalPos(YAW_ID, data)
                         break
             if c == chr(P_ASCII_VALUE):
                 break
             for j in reversed(range(len(input_direction)-1)):    
-               
-                M_Control(YAW_ID, ADDR_GOAL_POSITION, Yaw_waypoint_list[j])
+                sleepTime = PitchSpeedSpanning(Yaw_waypoint_list[j], Yaw_waypoint_list[j+1], Pitch_waypoint_list[j], Pitch_waypoint_list[j+1])
+                M_Control(YAW_ID, ADDR_GOAL_POSITION, Yaw_waypoint_list[j]+ Yaw_Origin)
                 M_Control(PITCH_ID, ADDR_GOAL_POSITION, Pitch_waypoint_list[j])
                 dxl_present_position = Yaw_waypoint_list[j]
-                time.sleep(3)
+                print(j)
+                print("Yaw " + str(Yaw_waypoint_list[j]) + "\n")
+                print("Pitch" + str(Pitch_waypoint_list[j]) + "\n")
+                time.sleep(sleepTime)
                 if kbhit():
                     c = getch()
                     if c == chr(P_ASCII_VALUE):
+                        SaveGoalPos(PITCH_ID, data)
+                        SaveGoalPos(YAW_ID, data)
                         break
             if c == chr(P_ASCII_VALUE):
                 break
             
         continue        
-           
-    # print("  Press SPACE key to Stop")
-
-    # Write goal position
-    while 1:
-        
-        # Read present position
-        dxl_present_position = M_Read(dxl_ID,ADDR_PRESENT_POSITION)
-        Goal = M_Read(dxl_ID ,ADDR_GOAL_POSITION)
-        
-        if kbhit():
-            c = getch()
-            if c == chr(SPACE_ASCII_VALUE):
+    
+    elif c == chr(SPACE_ASCII_VALUE):
                 print("\n  Stop ")
+                # Read present position
+                dxl_present_position = M_Read(dxl_ID,ADDR_PRESENT_POSITION)
+                Goal = M_Read(dxl_ID ,ADDR_GOAL_POSITION)
                 # Write the present position to the goal position to stop moving
                 
                 M_Control(dxl_ID, ADDR_GOAL_POSITION, dxl_present_position)
@@ -547,17 +596,26 @@ while 1:
                 
                 data[dxl_ID-1] = Goal
                 SaveData(data)
-                break
-            
-            
-        print("(ID = %d) Goal = %04d (%d)   present = %04d (%d)      "% (dxl_ID, Goal,Goal/4095*360,  dxl_present_position, dxl_present_position/4095*360),end = "\r")
 
+    elif c == chr(M_ASCII_VALUE):
+        for i in Save_Data:
+            print(i[0],end= ' ')
+        print("<- choose what you want\n")
+        move_name = input("")
+        for i in Save_Data:             # check input in Save_Data
+                if move_name == i[0]:
+                   get_waypoint = i
+                   print(get_waypoint)
+        dxl_present_pos = M_Read(YAW_ID, ADDR_PRESENT_POSITION)
+        M_Control(PITCH_ID, ADDR_GOAL_POSITION, get_waypoint[3])
+        if abs(get_waypoint[1] + Yaw_Origin - dxl_present_pos) < abs(get_waypoint[2] + Yaw_Origin  - dxl_present_pos):
+            M_Control(YAW_ID, ADDR_GOAL_POSITION, get_waypoint[1]+Yaw_Origin)
+        else:
+            M_Control(YAW_ID, ADDR_GOAL_POSITION, get_waypoint[2]+Yaw_Origin)
         
-        if not abs(Goal- dxl_present_position) > DXL_MOVING_STATUS_THRESHOLD:
-            data[dxl_ID-1] = Goal
-            SaveData(data)
-            print("\n")
-            break
+        SaveGoalPos(YAW_ID, data)
+        SaveGoalPos(PITCH_ID, data)
+    
 
 ########################################################################################
 # Disable Dynamixel Torque
