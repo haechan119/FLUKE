@@ -464,7 +464,7 @@ class Control_motor:
                 else:
                     datas = str(datas[0][:-1])
                     print(datas)
-                if datas == chr(self.R_ASCII_VALUE):
+                if datas == chr(self.SPACE_ASCII_VALUE):
                     self.control_stop()
                     text.close()
                     text = open("Command.txt","w")
@@ -498,7 +498,7 @@ class Control_motor:
                     
             if c == chr(self.P_ASCII_VALUE):
                 break
-            if datas == chr(self.R_ASCII_VALUE):
+            if datas == chr(self.SPACE_ASCII_VALUE):
                 break
             
             for j in reversed(range(len(input_list)-1)):
@@ -510,7 +510,7 @@ class Control_motor:
                 else:
                     datas = str(datas[0][:-1])
                     print(datas)
-                if datas == chr(self.R_ASCII_VALUE):
+                if datas == chr(self.SPACE_ASCII_VALUE):
                     self.control_stop()
                     text.close()
                     text = open("Command.txt","w")
@@ -533,7 +533,7 @@ class Control_motor:
                     
             if c == chr(self.P_ASCII_VALUE):
                 break
-            if datas == chr(self.R_ASCII_VALUE):
+            if datas == chr(self.SPACE_ASCII_VALUE):
                 break
             
     def control_stop(self):
