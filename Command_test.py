@@ -5,9 +5,7 @@ def Send_command(command):
     text.close()
     
 
-while 1:
+while True:
     
     command = input("Send command : ")
     Send_command(command)
-    
-    
