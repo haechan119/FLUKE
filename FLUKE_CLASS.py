@@ -283,7 +283,6 @@ class Control_motor:
         
         return Value
         # print(" Value = %03d present = %03d (degree)" % (Value/4095*360, dxl_present_position/4095*360))
-        
     ########################################################################################
     # function for clearing multi-turn
     def Clear(self, motor_id):
@@ -292,7 +291,6 @@ class Control_motor:
             print("%s" % self.packetHandler.getTxRxResult(dxl_comm_result))
         elif dxl_error != 0:
             print("%s" % self.packetHandler.getRxPacketError(dxl_error))
-            
     ########################################################################################
     def SaveGoalPos(self, dxl_ID, data):
         Goal = self.M_Read(dxl_ID , self.ADDR_GOAL_POSITION)
@@ -310,9 +308,7 @@ class Control_motor:
         return sleepTime
     ######################################################################################## 
     # Read data & Calibration
-        
         # !! You previously should have "Saturatoin.txt" !!
-
     def shutdown(self):
         # if c == chr(ESC_ASCII_VALUE):
         self.M_Control(self.PITCH_ID, self.ADDR_VELOCITY_PROFILE, 200)
@@ -321,7 +317,7 @@ class Control_motor:
         self.Clear(self.YAW_ID)
         self.Clear(self.PITCH_ID)
         self.SaveData(self.data)
-        
+        # I have no idea what am I doing
         ########################################################################################
         # Disable Dynamixel Torque
         dxl_comm_result, dxl_error = self.packetHandler.write1ByteTxRx(self.portHandler, self.YAW_ID, self.ADDR_TORQUE_ENABLE, self.TORQUE_DISABLE)
@@ -387,8 +383,8 @@ class Control_motor:
         self.M_Control(self.YAW_ID, self.ADDR_VELOCITY_PROFILE, self.Yaw_Velocity_Value)        # Yaw motor
         self.M_Control(self.PITCH_ID, self.ADDR_VELOCITY_PROFILE, self.Pitch_Velocity_Value)         # Pitch motor
     
-    def waypoint_delete(self):
-        key = input("Delete way point : ")
+    def waypoint_delete(self, command):
+        key = command[0]
         ind = 0
         while 1:
             if self.Save_Data[ind][0] == str(key):
@@ -404,8 +400,8 @@ class Control_motor:
             Waypoints.write(str(i) + '\n')
         Waypoints.close()
     
-    def waypoint_save(self):
-        name_val = input("Name the save point as : ")
+    def waypoint_save(self, command):
+        name_val = str(command[0])
         # save waypoint's name
         Yaw_wp_val = self.M_Read(self.YAW_ID, self.ADDR_PRESENT_POSITION)- self.Yaw_Origin
         # from absolute origin position get relative waypoint position
@@ -423,24 +419,21 @@ class Control_motor:
             Waypoints.write(str(i) + '\n')
         Waypoints.close()
     
-    def control_rotation(self):
+    def control_rotation(self, command):
         input_list = []
         
-        for i in self.Save_Data:
-            print(i[0],end= ' ')
-        print("<- choose what you want\n")
-        while 1:
-            input_name = input("")
-            
-            if input_name == "e":           # end input command "e"
-                print("input end\n")
-                break
-            
+        # for i in self.Save_Data:
+        #     print(i[0],end= ' ')
+        # print("<- choose what you want\n")
+        # while 1:
+        for k in command:
+            # if command == "e":           # end input command "e"
+            #     print("input end\n")
+            #     break
             for i in self.Save_Data:             # check input in Save_Data
-                if input_name == i[0]:
+                if k == i[0]:
                     input_list.append(i)    # append input
             # print(input_list,"\n")
-            
             
         input_list.sort(key=lambda x:-x[1]) # Sorting input_list
         # name input
@@ -460,9 +453,26 @@ class Control_motor:
         print(Pitch_waypoint_list)     
         c = ""        
         LoopStart = 1
-        while 1 :
+        while 1:
+            
             for i in range(1, len(input_list)):
+                
+                text = open("Command.txt","r")
+                datas = text.readlines()
+                if len(datas) == 0:
+                    pass
+                else:
+                    datas = str(datas[0][:-1])
+                    print(datas)
+                if datas == chr(self.R_ASCII_VALUE):
+                    self.control_stop()
+                    text.close()
+                    text = open("Command.txt","w")
+                    text.close()
+                    break
+                
                 print(i)
+                
                 if LoopStart != 1 :
                     sleepTime = self.PitchSpeedSpanning(Yaw_waypoint_list[i], Yaw_waypoint_list[i-1], Pitch_waypoint_list[i], Pitch_waypoint_list[i-1])
                     self.M_Control(self.YAW_ID, self.ADDR_GOAL_POSITION, Yaw_waypoint_list[i]+ self.Yaw_Origin)
@@ -478,15 +488,35 @@ class Control_motor:
                     print("Yaw " + str(Yaw_waypoint_list[i]) + "\n")
                     print("Pitch" + str(Pitch_waypoint_list[i]) + "\n")
                     time.sleep(sleepTime)
+                
                 if kbhit():
                     c = getch()
                     if c == chr(self.P_ASCII_VALUE):
                         self.SaveGoalPos(self.PITCH_ID, self.data)
                         self.SaveGoalPos(self.YAW_ID, self.data)
                         break
+                    
             if c == chr(self.P_ASCII_VALUE):
                 break
-            for j in reversed(range(len(input_list)-1)):    
+            if datas == chr(self.R_ASCII_VALUE):
+                break
+            
+            for j in reversed(range(len(input_list)-1)):
+                
+                text = open("Command.txt","r")
+                datas = text.readlines()
+                if len(datas) == 0:
+                    pass
+                else:
+                    datas = str(datas[0][:-1])
+                    print(datas)
+                if datas == chr(self.R_ASCII_VALUE):
+                    self.control_stop()
+                    text.close()
+                    text = open("Command.txt","w")
+                    text.close()
+                    break
+                
                 sleepTime = self.PitchSpeedSpanning(Yaw_waypoint_list[j], Yaw_waypoint_list[j+1], Pitch_waypoint_list[j], Pitch_waypoint_list[j+1])
                 self.M_Control(self.YAW_ID, self.ADDR_GOAL_POSITION, Yaw_waypoint_list[j]+ self.Yaw_Origin)
                 self.M_Control(self.PITCH_ID, self.ADDR_GOAL_POSITION, Pitch_waypoint_list[j])
@@ -500,7 +530,10 @@ class Control_motor:
                         self.SaveGoalPos(self.PITCH_ID, self.data)
                         self.SaveGoalPos(self.YAW_ID, self.data)
                         break
+                    
             if c == chr(self.P_ASCII_VALUE):
+                break
+            if datas == chr(self.R_ASCII_VALUE):
                 break
             
     def control_stop(self):
@@ -528,21 +561,18 @@ class Control_motor:
         self.data[0:2] = [yaw_Goal, pitch_Goal]
         self.SaveData(self.data)
     
-    def contorl_move(self):
+    def control_move(self, command):
         for i in self.Save_Data:
             print(i[0],end= ' ')
         print("<- choose what you want\n")
-        move_name = input("")
+        move_name = str(command[0])
         for i in self.Save_Data:             # check input in Save_Data
                 if move_name == i[0]:
                    get_waypoint = i
                    print(get_waypoint)
-        dxl_present_pos = self.M_Read(self.YAW_ID, self.ADDR_PRESENT_POSITION)
-        self.M_Control(self.PITCH_ID, self.ADDR_GOAL_POSITION, get_waypoint[3])
-        if abs(get_waypoint[1] + self.Yaw_Origin - dxl_present_pos) < abs(get_waypoint[2] + self.Yaw_Origin  - dxl_present_pos):
-            self.M_Control(self.YAW_ID, self.ADDR_GOAL_POSITION, get_waypoint[1] + self.Yaw_Origin)
-        else:
-            self.M_Control(self.YAW_ID, self.ADDR_GOAL_POSITION, get_waypoint[2] + self.Yaw_Origin)
+        
+        self.M_Control(self.PITCH_ID, self.ADDR_GOAL_POSITION, get_waypoint[2])
+        self.M_Control(self.YAW_ID, self.ADDR_GOAL_POSITION, get_waypoint[1] + self.Yaw_Origin)
         
         self.SaveGoalPos(self.YAW_ID, self.data)
         self.SaveGoalPos(self.PITCH_ID, self.data)
