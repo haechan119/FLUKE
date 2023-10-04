@@ -419,7 +419,7 @@ class Control_motor:
             Waypoints.write(str(i) + '\n')
         Waypoints.close()
     
-    def control_rotation(self, command):
+    def control_rotation(self, command): 
         input_list = []
         
         # for i in self.Save_Data:

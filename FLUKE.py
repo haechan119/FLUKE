@@ -27,18 +27,18 @@ while 1:
     c = Read_command()
     if len(c) == 0:
         continue
-    
-    if c == chr(Controller.ESC_ASCII_VALUE):
+     
+    if c == chr(Controller.ESC_ASCII_VALUE) or c == chr(Controller.P_ASCII_VALUE):
         Controller.shutdown()
         break
     
-    elif c == chr(Controller.W_ASCII_VALUE) or c == "w":
+    elif c == chr(Controller.W_ASCII_VALUE):
         Controller.control_up()
         
     elif c == chr(Controller.A_ASCII_VALUE):
         Controller.control_left()
         
-    elif c == chr(Controller.S_ASCII_VALUE) or c == "s":
+    elif c == chr(Controller.S_ASCII_VALUE):
         Controller.control_down()
             
     elif c == chr(Controller.D_ASCII_VALUE):
